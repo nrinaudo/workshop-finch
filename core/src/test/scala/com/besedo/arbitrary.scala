@@ -23,7 +23,7 @@ object arbitrary {
     } yield Document.Profile(id, teaser, desc, age)
   }
 
-  implicit val arbDocument: Arbitrary[Document] = Arbitrary(Gen.oneOf(arbAd.arbitrary, arbDocument.arbitrary))
+  implicit val arbDocument: Arbitrary[Document] = Arbitrary(Gen.oneOf(arbAd.arbitrary, arbProfile.arbitrary))
 
 
   // - Arbitrary instances of Decision ---------------------------------------------------------------------------------
