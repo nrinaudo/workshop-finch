@@ -220,6 +220,7 @@ See next slides for data examples.
 * create a [`Decoder`] for your `Document` type
   * _hint_: consider splitting into multiple [`Decoder`] instances and gluing them together
   * _hint_: resources can be accessed through [`Source.fromResource`]
+  * _hint_: `io.circe.parser` has utilities to turn `String` into [`Json`]
 
 * create an [`Encoder`] for your `Decision` type
   * _hint_: see next slide for data examples
@@ -443,6 +444,10 @@ class: center, middle
 
 * _optional_: see if you can add basic auth
   * _hint_: your project already includes the appropriate dependency
+
+* _optional_: write simple tests
+  * _hint_: you could compare the output of your moderation function with that of the endpoint
+
 
 ---
 class: center, middle
