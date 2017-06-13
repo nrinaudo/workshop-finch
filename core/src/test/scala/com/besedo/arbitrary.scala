@@ -24,4 +24,12 @@ object arbitrary {
   }
 
   implicit val arbDocument: Arbitrary[Document] = Arbitrary(Gen.oneOf(arbAd.arbitrary, arbDocument.arbitrary))
+
+
+  // - Arbitrary instances of Decision ---------------------------------------------------------------------------------
+  // -------------------------------------------------------------------------------------------------------------------
+  implicit val arbAccept: Arbitrary[Decision.Accept] = Arbitrary(Gen.uuid.map(Decision.Accept))
+  implicit val arbReject: Arbitrary[Decision.Reject] = Arbitrary(Gen.uuid.map(Decision.Reject))
+
+  implicit val arbDecision: Arbitrary[Decision] = Arbitrary(Gen.oneOf(arbAccept.arbitrary, arbReject.arbitrary))
 }
