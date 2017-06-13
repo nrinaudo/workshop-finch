@@ -26,6 +26,8 @@ val tutDirName = settingKey[String]("tut output directory")
 lazy val slides = project
   .enablePlugins(TutPlugin)
   .enablePlugins(SitePlugin)
+  .enablePlugins(GhpagesPlugin)
+  .settings(git.remoteRepo := "git@github.com:nrinaudo/workshop-finch.git")
   .settings(tutDirName := "./")
   .settings(addMappingsToSiteDir(tut, tutDirName))
   .settings(baseSettings)
