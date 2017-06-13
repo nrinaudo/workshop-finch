@@ -23,6 +23,8 @@ git clone git@github.com:nrinaudo/workshop-finch.git
 git checkout start
 ```
 
+It might also be useful to have the [slides](https://nrinaudo.github.io/workshop-finch/) open in a browser window.
+
 Ideally, attendants would have pre-loaded the project in their IDE or editor of choice (we recommend Emacs + Ensime).
 
 
