@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Basic Finch</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <link rel="stylesheet" type="text/css" href="css/style.css"/>
+  </head>
+  <body>
+      <textarea id="source">
+class: center, middle
+
+# Using Finch & Circe to write REST-like APIs
+
+Nicolas Rinaudo • [`@NicolasRinaudo`](https://twitter.com/NicolasRinaudo) • [Besedo](http://besedo.com)
+
+---
+## Overview
+
+The purpose of this workshop is to get a simple REST-like API working using [Finch] and [circe].
+
+By the end, you should be comfortable enough with the basics to be able to figure the rest out for yourself.
+
+--
+
+We'll go through the following steps:
+
+* implement the core of a simple business case
+* serialise its data types to and from JSON using [circe]
+* make it available as a web API using [Finch]
+
+---
+class: center, middle
+# Business case: moderation
+
+---
+
+## Workflow
+
+* a document gets in the system
+
+--
+
+* it's evaluated against moderation rules
+
+--
+
+* depending on the outcome of the rules, it's either accepted or rejected.
+
+
+---
+
+## Document types
+
+A _classified ad_ is composed of:
+
+* a unique identifier ([`UUID`](https://docs.oracle.com/javase/7/docs/api/java/util/UUID.html))
+* a textual description ([`String`](https://docs.oracle.com/javase/7/docs/api/java/lang/String.html))
+* a price ([`Float`](http://www.scala-lang.org/api/2.12.2/scala/Float.html))
+
+--
+
+An _online profile_ is composed of:
+
+* a unique identifier ([`UUID`](https://docs.oracle.com/javase/7/docs/api/java/util/UUID.html))
+* a textual teaser ([`String`](https://docs.oracle.com/javase/7/docs/api/java/lang/String.html))
+* a textual description ([`String`](https://docs.oracle.com/javase/7/docs/api/java/lang/String.html))
+* the age of its owner ([`Int`](http://www.scala-lang.org/api/2.12.2/scala/Int.html))
+
+---
+
+## Moderation rules
+
+
+A _classified ad_ is moderated according to this rule:
+
+```scala
+if(price > 1000F) reject
+else              accept
+```
+
+--
+
+An _online profile_ is moderated according to this rule:
+
+```scala
+if(age < 18) reject
+else         accept
+```
+
+---
+class: center, middle
+# 1st Exercise: data modelling
+
+---
+
+## Tasks
+
+* create the required data types
+  * _hint_: remember our [previous session](https://nrinaudo.github.io/talk-data-representation/#1)
+  * _hint_: don't forget you also need a result type
+
+* implement the moderation logic
+  * _hint_: write a `Document ⇒ Decision`
+  * _hint_: think of [pattern matching](http://docs.scala-lang.org/tutorials/tour/pattern-matching.html)
+
+* _optional_: write simple tests
+  * _hint_: you could use [scalacheck] or [scalatest] to write some quick tests. The project is already set up with both
+
+---
+class: center, middle
+# JSON handling: [circe]
+
+---
+## General concepts
+
+[circe] works with an AST - an abstract representation of JSON documents: [`Json`]
+
+--
+
+When working with [circe], you tell it how to:
+
+* encode data: turn your types into [`Json`]
+* decode data: turn [`Json`] into your types
+
+--
+
+Serialisation / deserialisation is handled for you
+
+---
+## Syntax
+
+[circe] provides useful syntax to help you work with [`Json`]:
+
+```tut:silent
+import io.circe.syntax._
+```
+
+--
+
+This lets us encode data:
+
+```tut:book
+val json = List(1, 2, 3).asJson
+```
+
+--
+
+And decode it:
+
+```tut:book
+json.as[List[Int]]
+```
+
+---
+
+## Encoding JSON
+
+This is achieved by the [`Encoder`] type class:
+
+If there exists an implicit [`Encoder[A]`][`Encoder`] in scope, you can call [`asJson`] on values of type `A`.
+
+--
+
+```tut:silent
+case class Foo(i: Int, b: Boolean)
+```
+
+```tut:silent
+import io.circe._
+
+implicit val fooEncoder = Encoder.forProduct2("i", "b") { f: Foo ⇒
+  (f.i, f.b)
+}
+```
+
+---
+
+## Encoding JSON ²
+
+
+This lets us:
+
+```tut:book
+val jsonFoo = Foo(1, true).asJson
+```
+
+---
+
+
+## Decoding JSON
+
+This is achieved by the [`Decoder`] type class:
+
+If there exists an implicit [`Decoder[A]`][`Decoder`] in scope, you can call [`as[A]`][`as`] on values of type [`Json`]
+
+--
+
+```tut:silent
+implicit val fooDecoder = Decoder.forProduct2("i", "b")(Foo.apply)
+```
+
+--
+
+This lets us:
+
+```tut:book
+jsonFoo.as[Foo]
+```
+
+---
+class: center, middle
+# 2nd Exercise: JSON encoding / decoding
+
+---
+
+## Tasks
+
+See next slides for data examples.
+
+* create a [`Decoder`] for your `Document` type
+  * _hint_: consider splitting into multiple [`Decoder`] instances and gluing them together
+  * _hint_: resources can be accessed through [`Source.fromResource`]
+
+* create an [`Encoder`] for your `Decision` type
+  * _hint_: see next slide for data examples
+
+* _optional_: write simple tests
+  * _hint_: if using [scalacheck], consider writing [`Decoder`] and [`Encoder`] instances for all types and making sure encoding and decoding yields the original document
+
+---
+
+## Sample data: classified ad
+
+```json
+{
+    "type":  "ad",
+    "id":    "346c1b67-1b6b-47cd-8e2f-c6b92b1fc278",
+    "price": 10,
+    "body":  "Selling my pet alligator"
+}
+```
+
+Available as resource `/ad.json`
+
+---
+
+## Sample data: online profile
+
+```json
+{
+    "type":   "profile",
+    "id":     "40c4f88b-f32e-4a20-9b70-b9f55e43709d",
+    "teaser": "Do you like alligators?",
+    "age":    19,
+    "body":   "I'm all about them, they're so toothy"
+}
+```
+
+Available as resource `/profile.json`
+
+---
+
+## Sample data: decision
+
+```json
+{
+    "id":       "40c4f88b-f32e-4a20-9b70-b9f55e43709d",
+    "decision": "accept"
+}
+```
+
+
+---
+class: center, middle
+# REST-like API: [Finch]
+
+---
+
+## General Concepts
+
+[Finch] works around the concept of [`Endpoint`]:
+
+* checks whether an HTTP request matches
+* turns matches into responses
+
+--
+
+Endpoints are combined, and turned into an HTTP service through [`toService`]
+
+---
+
+## Endpoints: segments
+
+Declaring an endpoint on a specific path:
+
+```tut:silent
+import io.finch._
+
+val path = "path" :: "to" :: "endpoint"
+```
+
+--
+
+This only matches requests to `/path/to/endpoint`:
+
+```tut:book
+path(Input.get("/path/to/endpoint")).isMatched
+
+path(Input.get("/foo/bar")).isMatched
+```
+
+---
+
+## Endpoints: segments ²
+
+You can analyse segments in the path:
+
+```tut:silent
+val path = "num" :: int
+```
+
+--
+
+This only matches requests to `/num/[0-9]+`:
+
+```tut:book
+path(Input.get("/num/123")).isMatched
+
+path(Input.get("/num/foo")).isMatched
+```
+
+---
+
+## Endpoints: methods
+
+Endpoints can be made to match a specific HTTP verb:
+
+```tut:silent
+val method = post("num" :: int)
+```
+
+--
+
+This only matches POST requests:
+
+```tut:book
+method(Input.post("/num/123")).isMatched
+
+method(Input.get("/num/123")).isMatched
+```
+
+---
+
+## Endpoints: request entity bodies
+
+Endpoints can expect and decode an entity body:
+
+```tut:silent
+import io.finch.circe._
+
+val body = post("body" :: jsonBody[List[Int]])
+```
+
+--
+
+This extracts the specified request entity body:
+
+```tut:book
+body(Input.post("/body").
+  withBody[Application.Json](List(1, 2, 3))).
+  awaitOutputUnsafe().get.value
+```
+
+---
+
+## Endpoints: mapping on output
+
+You can of course run code on a request:
+
+```tut:silent
+val body = post("body" :: jsonBody[List[Int]]) { is: List[Int] ⇒
+  Ok(is.foldLeft(0)(_ + _))
+}
+```
+
+--
+
+This sums the content of the specified JSON-formatted list of ints:
+
+```tut:book
+body(Input.post("/body").
+  withBody[Application.Json](List(1, 2, 3))).
+  awaitOutputUnsafe().get.value
+```
+
+---
+
+## Providing multiple endpoints
+
+Using `:+:`, you can work with multiple endpoints:
+
+```tut:silent
+val alt = ("num" :: int) :+: ("bool" :: boolean)
+```
+
+--
+
+This matches only on `/num/[0-9]+` and `/bool/(true|false)`:
+
+```tut:book
+alt(Input.get("/num/123")).isMatched
+
+alt(Input.get("/bool/true")).isMatched
+
+alt(Input.get("/foo/bar")).isMatched
+```
+
+---
+
+## Turning endpoints into services
+
+Once you're satisfied with your endpoint(s), just call [`toService`]:
+
+```scala
+import com.twitter.finagle.Http
+import com.twitter.util.Await
+
+Await.ready(Http.server.serve(":8081", ("num" :: int).toService))
+```
+
+---
+class: center, middle
+# 3rd Exercise: REST-like service
+
+---
+
+## Tasks
+
+* write a moderation endpoint
+  * _hint_: you should already have all the necessary encoders and decoders
+
+* turn your endpoint into a complete moderation service
+
+* _optional_: see if you can add basic auth
+  * _hint_: your project already includes the appropriate dependency
+
+---
+class: center, middle
+# Wrapping things up
+
+---
+
+## What we learned
+
+* Encoding / decoding JSON with [circe]
+
+* Making REST-like web services with [Finch]
+
+* Bringing the two together in a way that clearly separates core logic from the communication layer
+
+---
+
+## Next steps
+
+We've barely scratched the surface of what [circe] and [Finch] offer.
+
+While these projects' documentations are good in themselves, they're also examples of well crafted Scala projects. Don't hesitate
+to grab the source and learn from it.
+
+---
+class: center, middle
+# Thanks!
+
+[circe]:http://circe.io
+[Finch]:https://github.com/finagle/finch
+[scalacheck]:https://scalacheck.org
+[scalatest]:http://www.scalatest.org
+[`Json`]:http://circe.github.io/circe/api/io/circe/Json.html
+[`Decoder`]:http://circe.github.io/circe/api/io/circe/Decoder.html
+[`Encoder`]:http://circe.github.io/circe/api/io/circe/Encoder.html
+[`asJson`]:http://circe.github.io/circe/api/io/circe/syntax/package$$EncoderOps.html#asJson(implicitencoder:io.circe.Encoder[A]):io.circe.Json
+[`as`]:http://circe.github.io/circe/api/io/circe/Json.html#as[A](implicitd:io.circe.Decoder[A]):io.circe.Decoder.Result[A]
+[`Source.fromResource`]:https://www.scala-lang.org/api/2.12.2/scala/io/Source$.html#fromResource(resource:String,classLoader:ClassLoader)(implicitcodec:scala.io.Codec):scala.io.BufferedSource
+[`Endpoint`]:http://finagle.github.io/finch/api/io/finch/Endpoint.html
+[`toService`]:http://finagle.github.io/finch/api/io/finch/Endpoint.html#toService(implicittr:io.finch.internal.ToResponse.Aux[A,io.finch.Application.Json],implicittre:io.finch.internal.ToResponse.Aux[Exception,io.finch.Application.Json]):com.twitter.finagle.Service[com.twitter.finagle.http.Request,com.twitter.finagle.http.Response]
+
+    </textarea>
+    <script src="js/remark.js" type="text/javascript">
+    </script>
+    <script type="text/javascript">
+        var slideshow = remark.create({
+        highlightStyle: 'solarized-dark'
+      });
+    </script>
+  </body>
+</html>
